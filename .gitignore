@@ -1,11 +1,3 @@
 ZoeDepth 
 
-photos/**/*.jpg
-
-
-*.pyc
-
-
-.env
-.vscode/
-.idea/
+DPTs\photos
