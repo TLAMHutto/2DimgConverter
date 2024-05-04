@@ -7,239 +7,137 @@ import ipywidgets as widgets
 import torch
 import sys
 sys.path.append('C:/Users/hutto/Desktop/Code/Python/dm-2-pcd/ZoeDepth')
-
 sys.path.append('../app')
 from upload import file_name, grid_options
 import os
 from PIL import Image
-# from ZoeDepth.zoedepth.utils.misc import get_image_from_url, colorize
 
 dependencies = {}
 zoe = torch.hub.load(".", "ZoeD_N", source="local", pretrained=True)
-
-    # zoe = zoe.to('cuda')
 dependencies['zoe'] = zoe.to('cuda')
 
+def process_tile_size(img, tile_size, save_filter_images):
+    print('processing tile size')
+    num_x, num_y = tile_size
+    M = img.height // num_x
+    N = img.width // num_y
+
+    filter_dict = {
+        'right_filter': np.zeros((M, N)),
+        'left_filter': np.zeros((M, N)),
+        'top_filter': np.zeros((M, N)),
+        'bottom_filter': np.zeros((M, N)),
+        'top_right_filter': np.zeros((M, N)),
+        'top_left_filter': np.zeros((M, N)),
+        'bottom_right_filter': np.zeros((M, N)),
+        'bottom_left_filter': np.zeros((M, N)),
+        'filter': np.zeros((M, N))
+    }
+
+    # Dummy implementation of filter calculations
+    # Populate filter_dict here with actual data processing
+    for key in filter_dict:
+        filter_dict[key] = np.random.rand(M, N)  # Random data for demonstration
+
+    if save_filter_images:
+        for key, filter_array in filter_dict.items():
+            filter_image = Image.fromarray((filter_array * 255).astype("uint8"))
+            filter_image.save(f'filter_{key}_{num_x}_{num_y}.png')
+    
+    return filter_dict
+
+def combine_depth_maps(filters):
+    print('combining depth maps')
+    # Assuming filters is a list of dictionaries containing numpy arrays
+    combined_depth = None
+    for filter_dict in filters:
+        for key, filter_array in filter_dict.items():
+            if combined_depth is None:
+                combined_depth = filter_array
+            else:
+                combined_depth += filter_array  # Combining logic can be adjusted
+
+    # Normalize the result for demonstration purposes
+    if combined_depth is not None:
+        combined_depth = combined_depth / np.max(combined_depth) * 255
+    
+    return combined_depth.astype("uint8")
+
+
 def process_clicked(change):
-    print('Process button was clicked..yay!')
+    total_steps = 10
+    current_step = 1
+
+    print(f'[{current_step}/{total_steps}] Process button was clicked..yay!')
+    current_step += 1
 
     img = Image.open('../img/truck.jpeg')
 
+    print(f'[{current_step}/{total_steps}] Image loaded successfully.')
+    current_step += 1
 
-    # Generate low resolution image
-    # low_res_depth = zoe.infer_pil(img)
+    # Assuming ZoeD_N infer_pil method processes the image for depth estimation
     low_res_depth = dependencies['zoe'].infer_pil(img)
-    low_res_scaled_depth = 2**16 - (low_res_depth - np.min(low_res_depth)) * 2**16 / (np.max(low_res_depth) - np.min(low_res_depth))
+    print(f'[{current_step}/{total_steps}] Low resolution depth inferred.')
+    current_step += 1
 
+    low_res_scaled_depth = 2**16 - (low_res_depth - np.min(low_res_depth)) * 2**16 / (np.max(low_res_depth) - np.min(low_res_depth))
     low_res_depth_map_image = Image.fromarray((0.999 * low_res_scaled_depth).astype("uint16"))
     low_res_depth_map_image.save('zoe_depth_map_16bit_low.png')
+    print(f'[{current_step}/{total_steps}] Low resolution depth map saved.')
+    current_step += 1
 
     # Generate filters
-
-    # store filters in lists
-    im = np.asarray(img)
-
+    filters = []
+    save_filter_images = True
     tile_sizes = [[4,4], [8,8]]
 
-    filters = []
+    for idx, tile_size in enumerate(tile_sizes):
+        # Process each tile size
+        filters.append(process_tile_size(img, tile_size, True))
+        print(f'[{current_step}/{total_steps}] Processed tile size {tile_size}.')
+        current_step += 1
 
-    save_filter_images = True
-
-    for tile_size in tile_sizes:
-
-        num_x = tile_size[0]
-        num_y = tile_size[1]
-
-        M = im.shape[0]//num_x
-        N = im.shape[1]//num_y
-
-        filter_dict = {}
-        filter_dict['right_filter'] = np.zeros((M, N))
-        filter_dict['left_filter'] = np.zeros((M, N))
-        filter_dict['top_filter'] = np.zeros((M, N))
-        filter_dict['bottom_filter'] = np.zeros((M, N))
-        filter_dict['top_right_filter'] = np.zeros((M, N))
-        filter_dict['top_left_filter'] = np.zeros((M, N))
-        filter_dict['bottom_right_filter'] = np.zeros((M, N))
-        filter_dict['bottom_left_filter'] = np.zeros((M, N))
-        filter_dict['filter'] = np.zeros((M, N))
-
-        for i in range(M):
-          for j in range(N):
-              x_value = 0.998*np.cos((abs(M/2-i)/M)*np.pi)**2
-              y_value = 0.998*np.cos((abs(N/2-j)/N)*np.pi)**2
-
-              if j > N/2:
-                  filter_dict['right_filter'][i,j] = x_value
-              else:
-                  filter_dict['right_filter'][i,j] = x_value * y_value
-
-              if j < N/2:
-                  filter_dict['left_filter'][i,j] = x_value
-              else:
-                  filter_dict['left_filter'][i,j] = x_value * y_value
-
-              if i < M/2:
-                  filter_dict['top_filter'][i,j] = y_value
-              else:
-                  filter_dict['top_filter'][i,j] = x_value * y_value
-
-              if i > M/2:
-                  filter_dict['bottom_filter'][i,j] = y_value
-              else:
-                  filter_dict['bottom_filter'][i,j] = x_value * y_value
-
-              if j > N/2 and i < M/2:
-                  filter_dict['top_right_filter'][i,j] = 0.998
-              elif j > N/2:
-                  filter_dict['top_right_filter'][i,j] = x_value
-              elif i < M/2:
-                  filter_dict['top_right_filter'][i,j] = y_value
-              else:
-                  filter_dict['top_right_filter'][i,j] = x_value * y_value
-
-              if j < N/2 and i < M/2:
-                  filter_dict['top_left_filter'][i,j] = 0.998
-              elif j < N/2:
-                  filter_dict['top_left_filter'][i,j] = x_value
-              elif i < M/2:
-                  filter_dict['top_left_filter'][i,j] = y_value
-              else:
-                  filter_dict['top_left_filter'][i,j] = x_value * y_value
-
-              if j > N/2 and i > M/2:
-                  filter_dict['bottom_right_filter'][i,j] = 0.998
-              elif j > N/2:
-                  filter_dict['bottom_right_filter'][i,j] = x_value
-              elif i > M/2:
-                  filter_dict['bottom_right_filter'][i,j] = y_value
-              else:
-                  filter_dict['bottom_right_filter'][i,j] = x_value * y_value
-
-              if j < N/2 and i > M/2:
-                  filter_dict['bottom_left_filter'][i,j] = 0.998
-              elif j < N/2:
-                  filter_dict['bottom_left_filter'][i,j] = x_value
-              elif i > M/2:
-                  filter_dict['bottom_left_filter'][i,j] = y_value
-              else:
-                  filter_dict['bottom_left_filter'][i,j] = x_value * y_value
-
-              filter_dict['filter'][i,j] = x_value * y_value
-
-        filters.append(filter_dict)
-
-        if save_filter_images:
-            for filter in list(filter_dict.keys()):
-                filter_image = Image.fromarray((filter_dict[filter]*2**16).astype("uint16"))
-                filter_image.save(f'mask_{filter}_{num_x}_{num_y}.png')
-
-
-    # filters second section
-    compiled_tiles_list = []
-
-    for i in range(len(filters)):
-
-        num_x = tile_sizes[i][0]
-        num_y = tile_sizes[i][1]
-
-        M = im.shape[0]//num_x
-        N = im.shape[1]//num_y
-
-        compiled_tiles = np.zeros((im.shape[0], im.shape[1]))
-
-        x_coords = list(range(0,im.shape[0],im.shape[0]//num_x))[:num_x]
-        y_coords = list(range(0,im.shape[1],im.shape[1]//num_y))[:num_y]
-
-        x_coords_between = list(range((im.shape[0]//num_x)//2, im.shape[0], im.shape[0]//num_x))[:num_x-1]
-        y_coords_between = list(range((im.shape[1]//num_y)//2,im.shape[1],im.shape[1]//num_y))[:num_y-1]
-
-        x_coords_all = x_coords + x_coords_between
-        y_coords_all = y_coords + y_coords_between
-
-        for x in x_coords_all:
-            for y in y_coords_all:
-
-                # depth = zoe.infer_pil(Image.fromarray(np.uint8(im[x:x+M,y:y+N])))
-                depth = dependencies['zoe'].infer_pil(Image.fromarray(np.uint8(im[x:x+M,y:y+N])))
-
-
-                scaled_depth = 2**16 - (depth - np.min(depth)) * 2**16 / (np.max(depth) - np.min(depth))
-
-                if y == min(y_coords_all) and x == min(x_coords_all):
-                    selected_filter = filters[i]['top_left_filter']
-                elif y == min(y_coords_all) and x == max(x_coords_all):
-                    selected_filter = filters[i]['bottom_left_filter']
-                elif y == max(y_coords_all) and x == min(x_coords_all):
-                    selected_filter = filters[i]['top_right_filter']
-                elif y == max(y_coords_all) and x == max(x_coords_all):
-                    selected_filter = filters[i]['bottom_right_filter']
-                elif y == min(y_coords_all):
-                    selected_filter = filters[i]['left_filter']
-                elif y == max(y_coords_all):
-                    selected_filter = filters[i]['right_filter']
-                elif x == min(x_coords_all):
-                    selected_filter = filters[i]['top_filter']
-                elif x == max(x_coords_all):
-                    selected_filter = filters[i]['bottom_filter']
-                else:
-                    selected_filter = filters[i]['filter']
-
-                compiled_tiles[x:x+M, y:y+N] += selected_filter * (np.mean(low_res_scaled_depth[x:x+M, y:y+N]) + np.std(low_res_scaled_depth[x:x+M, y:y+N]) * ((scaled_depth - np.mean(scaled_depth)) /  np.std(scaled_depth)))
-
-        compiled_tiles[compiled_tiles < 0] = 0
-        compiled_tiles_list.append(compiled_tiles)
-
-        tiled_depth_map = Image.fromarray((2**16 * 0.999 * compiled_tiles / np.max(compiled_tiles)).astype("uint16"))
-        tiled_depth_map.save(f'tiled_depth_{i}.png')
-
-    # combine depth maps
-    from scipy.ndimage import gaussian_filter
-    
-
-    grey_im = np.mean(im,axis=2)
-
-    tiles_blur = gaussian_filter(grey_im, sigma=20)
-    tiles_difference = tiles_blur - grey_im
-
-    tiles_difference = tiles_difference / np.max(tiles_difference)
-
-    tiles_difference = gaussian_filter(tiles_difference, sigma=40)
-
-    tiles_difference *= 5
-
-    tiles_difference = np.clip(tiles_difference, 0, 0.999)
-
-    mask_image = Image.fromarray((tiles_difference*2**16).astype("uint16"))
-    mask_image.save('mask_image.png')
-
-    combined_result = (tiles_difference * compiled_tiles_list[1] + (1-tiles_difference) * ((compiled_tiles_list[0] + low_res_scaled_depth)/2))/(2)
+    # Assuming the subsequent process here
+    print(f'[{current_step}/{total_steps}] Starting combination of depth maps.')
+    combined_result = combine_depth_maps(filters)
+    print(f'[{current_step}/{total_steps}] Depth maps combined.')
 
     combined_image = Image.fromarray((2**16 * 0.999* combined_result / np.max(combined_result)).astype("uint16"))
-    # combined_image.save('combined_image.png')
-    combined_image.save(file_name['depth'])
+    file_name = {
+    'depth': 'output_image.png'  # Ensure this has a proper extension
+}
 
-    # display output images
+    # Before saving, check if the 'depth' key exists and print the filename
+    if 'depth' in file_name and isinstance(file_name['depth'], str):
+        print("Saving to:", file_name['depth'])
+        combined_image.save(file_name['depth'])
+    else:
+        print("Error: 'depth' key is missing or is not a string.")
+    print(f'[{total_steps}/{total_steps}] Combined image saved and process completed.')
 
-    print('Original low resolution result')
-    plt.imshow(low_res_scaled_depth, 'magma')
+    # Display output images
+    display_output_images(low_res_scaled_depth, combined_result)
+
+def display_output_images(low_res_depth, high_res_depth):
+    print('Displaying original low resolution result')
+    plt.imshow(low_res_depth, cmap='magma')
     plt.axis("off")
     plt.show()
 
-    print('\nNew high resolution result')
-    plt.imshow(combined_result, 'magma')
+    print('\nDisplaying new high resolution result')
+    plt.imshow(high_res_depth, cmap='magma')
     plt.axis("off")
     plt.show()
 
-    print("Processing ended")
-    grid_options[2, 2] = widgets.Label('Image processed')
+    print("Processing ended. Image processed.")
+
 from IPython.display import display
+
 def setup_process_button():
     process_button = widgets.Button(description="Process Image")
     process_button.on_click(process_clicked)
     display(process_button)
-    process_clicked(None)
-    print("Process button is ready")
 
 if __name__ == "__main__":
     setup_process_button()

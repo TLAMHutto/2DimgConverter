@@ -81,12 +81,23 @@ def processImg():
     print("Process button created.")
 
 def run_process_script():
+    print("Starting the image processing script...")
     try:
+        # Notify which script is being executed
+        print("Attempting to run the external script located at '../depthMap/processImg.py'")
         # Running the external script for processing the image
         subprocess.run(['python', '../depthMap/processImg.py'], check=True)
-        print("Run process from app.")
+        # If no exception was raised, the process was successful
+        print("External script executed successfully.")
     except subprocess.CalledProcessError as e:
+        # This block will execute if the subprocess encounters an error
         print(f"Error occurred while processing image: {e}")
+    except Exception as e:
+        # This will catch any other exceptions that might occur
+        print(f"An unexpected error occurred: {e}")
+    finally:
+        # This will execute whether the try block succeeds or an exception is caught
+        print("Process script execution attempted.")
 
 # Create the main window
 root = tk.Tk()
