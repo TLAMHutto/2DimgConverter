@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 # Load point cloud
-points = np.loadtxt('../point_cloud.xyz')
+points = np.loadtxt('../PCD/point_cloud.xyz')
 
 # Create a 3D plot
 fig = plt.figure()

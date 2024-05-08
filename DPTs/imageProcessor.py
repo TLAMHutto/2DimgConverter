@@ -2,13 +2,13 @@ from transformers import AutoImageProcessor, DPTForDepthEstimation
 import torch
 import numpy as np
 from PIL import Image
-import requests
+
 
 # Define the URL to fetch the image from the COCO dataset
-url = "http://farm1.staticflickr.com/230/499938318_cdadac6a73_z.jpg"
+file_path = '../img/original_image.jpg'  # Ensure 'your_image.jpg' is replaced with the actual image file name
 
-# Open the image from the URL using PIL (Python Imaging Library)
-image = Image.open(requests.get(url, stream=True).raw)
+# Open and save the image using PIL
+image = Image.open(file_path)
 image.save('./photos/imageProcessor/original_image.jpg', "JPEG")
 
 # Load the pre-trained AutoImageProcessor and DPTForDepthEstimation models

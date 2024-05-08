@@ -1,9 +1,8 @@
 import numpy as np
 from PIL import Image
-import requests
 import torch
 from transformers import DPTFeatureExtractor, DPTForDepthEstimation
-
+from PIL import Image
 # Create a DPT feature extractor
 feature_extractor = DPTFeatureExtractor.from_pretrained("Intel/dpt-large")
 
@@ -11,11 +10,15 @@ feature_extractor = DPTFeatureExtractor.from_pretrained("Intel/dpt-large")
 model = DPTForDepthEstimation.from_pretrained("Intel/dpt-large")
 
 # Specify the URL of the image to download
-url = 'https://img.freepik.com/free-photo/full-length-shot-pretty-healthy-young-lady-walking-morning-park-with-dog_171337-18880.jpg?w=360&t=st=1689213531~exp=1689214131~hmac=67dea8e3a9c9f847575bb27e690c36c3fec45b056e90a04b68a00d5b4ba8990e'
+print('test')
 
-# Download and open the image using PIL
-image = Image.open(requests.get(url, stream=True).raw)
+# Set the path to the image file
+file_path = '../img/original_image.jpg'  # Ensure 'your_image.jpg' is replaced with the actual image file name
+
+# Open and save the image using PIL
+image = Image.open(file_path)
 image.save('./photos/dptModelPi/original_image.jpg', "JPEG")
+
 
 pixel_values = feature_extractor(image, return_tensors="pt").pixel_values
 

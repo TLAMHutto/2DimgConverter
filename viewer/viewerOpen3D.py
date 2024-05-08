@@ -2,7 +2,7 @@ import numpy as np
 import open3d as o3d
 
 # Load point cloud
-points = np.loadtxt('../point_cloud.xyz')
+points = np.loadtxt('../PCD/point_cloud.xyz')
 pcd = o3d.geometry.PointCloud()
 pcd.points = o3d.utility.Vector3dVector(points)
 

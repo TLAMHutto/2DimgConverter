@@ -58,6 +58,26 @@ file_name['stl'] = ''
 # List all files in the directory
 image_files = [f for f in os.listdir(image_dir) if os.path.isfile(os.path.join(image_dir, f))]
 
+# Rename the first image file to 'original_image.jpg'
+if image_files:
+    # Assume you want to rename the first file
+    first_image_path = os.path.join(image_dir, image_files[0])
+    
+    # New name with path
+    new_image_path = os.path.join(image_dir, 'original_image.jpg')
+    
+    # Open the image to ensure it's valid and save it under the new name
+    image = Image.open(first_image_path)
+    image.save(new_image_path, 'JPEG')
+
+    # If you want to replace the old file, remove it after saving the new one
+    if first_image_path != new_image_path:
+        os.remove(first_image_path)
+
+    print(f"Renamed '{image_files[0]}' to 'original_image.jpg'")
+else:
+    print("No image files found in the directory.")
+
 # Create a dropdown to select an image file
 dropdown = widgets.Dropdown(
     options=image_files,
